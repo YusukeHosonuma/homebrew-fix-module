@@ -1,0 +1,42 @@
+name: Update Formula
+
+on:
+  repository_dispatch:
+    types: [released]
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update formula file
+        run: |
+          VERSION=$(echo ${{ github.event.client_payload.ref  }} | sed -e "s|refs/tags/||g")
+          URL="https://github.com/YusukeHosonuma/fix-module/releases/download/$VERSION/fix-module"
+          data=$(cat <<EOF > Formula/fix-module.rb
+          class FixModule < Formula
+            desc "A CLI tool that generate struct or class by simple-syntax"
+            homepage "https://github.com/YusukeHosonuma/fix-module"
+            url "$URL"
+            sha256 "${{ github.event.client_payload.sha256 }}"
+            license "MIT"
+            
+            def install
+              bin.install "fix-module"
+            end
+          end
+          EOF
+          )
+
+      - name: Commit
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "update version"
+
+      - name: Push
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
